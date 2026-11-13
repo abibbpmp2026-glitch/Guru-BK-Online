@@ -1,0 +1,444 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Global Safety Net
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Core Primitives
+    function isValidId(id) {
+      return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isVerified() {
+      return isSignedIn() && request.auth.token.email_verified == true;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isBootstrappedAdmin() {
+      return isVerified() && request.auth.token.email == 'abi.bbpmp2026@gmail.com';
+    }
+
+    function isAdmin() {
+      return isBootstrappedAdmin() || (
+        isVerified() &&
+        exists(/databases/$(database)/documents/staff_roles/$(request.auth.uid)) &&
+        get(/databases/$(database)/documents/staff_roles/$(request.auth.uid)).data.role == 'admin'
+      );
+    }
+
+    function isCounselorOrAdmin() {
+      return isAdmin() || (
+        isVerified() &&
+        exists(/databases/$(database)/documents/staff_roles/$(request.auth.uid)) &&
+        get(/databases/$(database)/documents/staff_roles/$(request.auth.uid)).data.role in ['admin', 'guru_bk']
+      );
+    }
+
+    // Validation Blueprints
+    function isValidUserProfile(data) {
+      return data.keys().hasAll(['uid', 'name', 'email', 'grade', 'school', 'role', 'guardianConsent', 'completedMaterialIds', 'createdAt', 'updatedAt']) &&
+        data.keys().hasOnly(['uid', 'name', 'email', 'grade', 'school', 'role', 'photoUrl', 'guardianConsent', 'completedMaterialIds', 'createdAt', 'updatedAt']) &&
+        isValidId(data.uid) &&
+        data.name is string && data.name.size() >= 1 && data.name.size() <= 120 &&
+        data.email is string && data.email.size() >= 3 && data.email.size() <= 160 &&
+        data.grade in ['VII', 'VIII', 'IX', 'Staff'] &&
+        data.school is string && data.school.size() >= 1 && data.school.size() <= 160 &&
+        data.role in ['siswa', 'guru_bk', 'admin'] &&
+        (!('photoUrl' in data) || (data.photoUrl is string && data.photoUrl.size() <= 500)) &&
+        data.guardianConsent is bool &&
+        data.completedMaterialIds is list && data.completedMaterialIds.size() <= 100 &&
+        (data.completedMaterialIds.size() == 0 || data.completedMaterialIds[0] is string) &&
+        data.createdAt is timestamp &&
+        data.updatedAt is timestamp;
+    }
+
+    function isValidStaffRole(data) {
+      return data.keys().hasAll(['uid', 'email', 'name', 'role', 'createdAt']) &&
+        data.keys().hasOnly(['uid', 'email', 'name', 'role', 'createdAt']) &&
+        isValidId(data.uid) &&
+        data.email is string && data.email.size() >= 3 && data.email.size() <= 160 &&
+        data.name is string && data.name.size() >= 1 && data.name.size() <= 120 &&
+        data.role in ['guru_bk', 'admin'] &&
+        data.createdAt is timestamp;
+    }
+
+    function isValidMaterialCategory(data) {
+      return data.keys().hasAll(['id', 'name', 'grade', 'description', 'order', 'updatedAt']) &&
+        data.keys().hasOnly(['id', 'name', 'grade', 'description', 'order', 'updatedAt']) &&
+        isValidId(data.id) &&
+        data.name is string && data.name.size() >= 1 && data.name.size() <= 100 &&
+        data.grade in ['VII', 'VIII', 'IX'] &&
+        data.description is string && data.description.size() <= 400 &&
+        data.order is int && data.order >= 0 && data.order <= 500 &&
+        data.updatedAt is timestamp;
+    }
+
+    function isValidCareerMaterial(data) {
+      return data.keys().hasAll(['id', 'title', 'grade', 'categoryId', 'categoryName', 'learningObjective', 'imageUrl', 'explanation', 'dailyExamples', 'reflectionPrompt', 'published', 'authorId', 'createdAt', 'updatedAt']) &&
+        data.keys().hasOnly(['id', 'title', 'grade', 'categoryId', 'categoryName', 'learningObjective', 'imageUrl', 'explanation', 'dailyExamples', 'reflectionPrompt', 'published', 'authorId', 'createdAt', 'updatedAt']) &&
+        isValidId(data.id) &&
+        data.title is string && data.title.size() >= 2 && data.title.size() <= 160 &&
+        data.grade in ['VII', 'VIII', 'IX'] &&
+        isValidId(data.categoryId) &&
+        data.categoryName is string && data.categoryName.size() >= 1 && data.categoryName.size() <= 100 &&
+        data.learningObjective is string && data.learningObjective.size() >= 5 && data.learningObjective.size() <= 500 &&
+        data.imageUrl is string && data.imageUrl.size() <= 500 &&
+        data.explanation is string && data.explanation.size() >= 10 && data.explanation.size() <= 8000 &&
+        data.dailyExamples is list && data.dailyExamples.size() >= 1 && data.dailyExamples.size() <= 10 &&
+        data.dailyExamples[0] is string &&
+        data.reflectionPrompt is string && data.reflectionPrompt.size() >= 5 && data.reflectionPrompt.size() <= 600 &&
+        data.published is bool &&
+        isValidId(data.authorId) &&
+        data.createdAt is timestamp &&
+        data.updatedAt is timestamp;
+    }
+
+    function isValidMaterialQuiz(data) {
+      return data.keys().hasAll(['id', 'materialId', 'questions', 'published', 'updatedAt']) &&
+        data.keys().hasOnly(['id', 'materialId', 'questions', 'published', 'updatedAt']) &&
+        isValidId(data.id) &&
+        isValidId(data.materialId) &&
+        data.questions is list && data.questions.size() >= 1 && data.questions.size() <= 10 &&
+        data.questions[0] is map &&
+        data.published is bool &&
+        data.updatedAt is timestamp;
+    }
+
+    function isValidQuizResult(data) {
+      return data.keys().hasAll(['id', 'userId', 'materialId', 'materialTitle', 'grade', 'score', 'totalQuestions', 'reflectionNote', 'completed', 'createdAt', 'updatedAt']) &&
+        data.keys().hasOnly(['id', 'userId', 'materialId', 'materialTitle', 'grade', 'score', 'totalQuestions', 'reflectionNote', 'completed', 'createdAt', 'updatedAt']) &&
+        isValidId(data.id) &&
+        isValidId(data.userId) &&
+        data.userId == request.auth.uid &&
+        isValidId(data.materialId) &&
+        data.materialTitle is string && data.materialTitle.size() >= 1 && data.materialTitle.size() <= 160 &&
+        data.grade in ['VII', 'VIII', 'IX'] &&
+        data.score is int && data.score >= 0 && data.score <= 100 &&
+        data.totalQuestions is int && data.totalQuestions >= 1 && data.totalQuestions <= 20 &&
+        data.reflectionNote is string && data.reflectionNote.size() <= 2000 &&
+        data.completed is bool &&
+        data.createdAt is timestamp &&
+        data.updatedAt is timestamp;
+    }
+
+    function isValidCareerExploration(data) {
+      return data.keys().hasAll(['id', 'userId', 'userName', 'grade', 'scores', 'topThree', 'answersCount', 'createdAt']) &&
+        data.keys().hasOnly(['id', 'userId', 'userName', 'grade', 'scores', 'topThree', 'answersCount', 'createdAt']) &&
+        isValidId(data.id) &&
+        isValidId(data.userId) &&
+        data.userId == request.auth.uid &&
+        data.userName is string && data.userName.size() >= 1 && data.userName.size() <= 120 &&
+        data.grade in ['VII', 'VIII', 'IX', 'Staff'] &&
+        data.scores is map &&
+        data.scores.keys().hasAll(['R', 'I', 'A', 'S', 'E', 'C']) &&
+        data.scores.keys().hasOnly(['R', 'I', 'A', 'S', 'E', 'C']) &&
+        data.scores.R is int && data.scores.I is int && data.scores.A is int &&
+        data.scores.S is int && data.scores.E is int && data.scores.C is int &&
+        data.topThree is list && data.topThree.size() == 3 &&
+        data.topThree[0] is string &&
+        data.answersCount is int && data.answersCount >= 24 && data.answersCount <= 60 &&
+        data.createdAt is timestamp;
+    }
+
+    function isValidInfoArticle(data) {
+      return data.keys().hasAll(['id', 'title', 'category', 'publishedDateLabel', 'updatedAtLabel', 'summary', 'content', 'sourceName', 'sourceUrl', 'imageUrl', 'published', 'authorId', 'createdAt', 'updatedAt']) &&
+        data.keys().hasOnly(['id', 'title', 'category', 'publishedDateLabel', 'updatedAtLabel', 'summary', 'content', 'sourceName', 'sourceUrl', 'imageUrl', 'published', 'authorId', 'createdAt', 'updatedAt']) &&
+        isValidId(data.id) &&
+        data.title is string && data.title.size() >= 3 && data.title.size() <= 200 &&
+        data.category is string && data.category.size() >= 2 && data.category.size() <= 80 &&
+        data.publishedDateLabel is string && data.publishedDateLabel.size() >= 2 && data.publishedDateLabel.size() <= 60 &&
+        data.updatedAtLabel is string && data.updatedAtLabel.size() >= 2 && data.updatedAtLabel.size() <= 60 &&
+        data.summary is string && data.summary.size() >= 5 && data.summary.size() <= 600 &&
+        data.content is string && data.content.size() >= 10 && data.content.size() <= 8000 &&
+        data.sourceName is string && data.sourceName.size() >= 2 && data.sourceName.size() <= 160 &&
+        data.sourceUrl is string && data.sourceUrl.size() <= 500 &&
+        data.imageUrl is string && data.imageUrl.size() <= 500 &&
+        data.published is bool &&
+        isValidId(data.authorId) &&
+        data.createdAt is timestamp &&
+        data.updatedAt is timestamp;
+    }
+
+    function isValidAnnouncement(data) {
+      return data.keys().hasAll(['id', 'title', 'message', 'targetGrade', 'active', 'authorId', 'createdAt', 'updatedAt']) &&
+        data.keys().hasOnly(['id', 'title', 'message', 'targetGrade', 'active', 'authorId', 'createdAt', 'updatedAt']) &&
+        isValidId(data.id) &&
+        data.title is string && data.title.size() >= 2 && data.title.size() <= 160 &&
+        data.message is string && data.message.size() >= 2 && data.message.size() <= 1000 &&
+        data.targetGrade in ['Semua', 'VII', 'VIII', 'IX'] &&
+        data.active is bool &&
+        isValidId(data.authorId) &&
+        data.createdAt is timestamp &&
+        data.updatedAt is timestamp;
+    }
+
+    function isValidChatSession(data) {
+      return data.keys().hasAll(['id', 'userId', 'title', 'topicCategory', 'messageCount', 'createdAt', 'updatedAt']) &&
+        data.keys().hasOnly(['id', 'userId', 'title', 'topicCategory', 'messageCount', 'createdAt', 'updatedAt']) &&
+        isValidId(data.id) &&
+        isValidId(data.userId) &&
+        data.userId == request.auth.uid &&
+        data.title is string && data.title.size() >= 1 && data.title.size() <= 140 &&
+        data.topicCategory is string && data.topicCategory.size() >= 1 && data.topicCategory.size() <= 60 &&
+        data.messageCount is int && data.messageCount >= 0 && data.messageCount <= 500 &&
+        data.createdAt is timestamp &&
+        data.updatedAt is timestamp;
+    }
+
+    function isValidChatMessage(data) {
+      return data.keys().hasAll(['id', 'sessionId', 'userId', 'role', 'content', 'createdAt']) &&
+        data.keys().hasOnly(['id', 'sessionId', 'userId', 'role', 'content', 'createdAt']) &&
+        isValidId(data.id) &&
+        isValidId(data.sessionId) &&
+        isValidId(data.userId) &&
+        data.userId == request.auth.uid &&
+        data.role in ['user', 'model'] &&
+        data.content is string && data.content.size() >= 1 && data.content.size() <= 10000 &&
+        data.createdAt is timestamp;
+    }
+
+    function isValidChatbotUsageStat(data) {
+      return data.keys().hasAll(['id', 'userId', 'grade', 'topicCategory', 'createdAt']) &&
+        data.keys().hasOnly(['id', 'userId', 'grade', 'topicCategory', 'createdAt']) &&
+        isValidId(data.id) &&
+        isValidId(data.userId) &&
+        data.userId == request.auth.uid &&
+        data.grade in ['VII', 'VIII', 'IX', 'Staff'] &&
+        data.topicCategory is string && data.topicCategory.size() >= 1 && data.topicCategory.size() <= 60 &&
+        data.createdAt is timestamp;
+    }
+
+    function isValidCounselingReferral(data) {
+      return data.keys().hasAll(['id', 'userId', 'userName', 'grade', 'topic', 'studentSummary', 'consentGiven', 'status', 'counselorNote', 'createdAt', 'updatedAt']) &&
+        data.keys().hasOnly(['id', 'userId', 'userName', 'grade', 'topic', 'studentSummary', 'consentGiven', 'status', 'counselorNote', 'createdAt', 'updatedAt']) &&
+        isValidId(data.id) &&
+        isValidId(data.userId) &&
+        data.userName is string && data.userName.size() >= 1 && data.userName.size() <= 120 &&
+        data.grade in ['VII', 'VIII', 'IX', 'Staff'] &&
+        data.topic is string && data.topic.size() >= 2 && data.topic.size() <= 120 &&
+        data.studentSummary is string && data.studentSummary.size() >= 5 && data.studentSummary.size() <= 2000 &&
+        data.consentGiven is bool &&
+        data.status in ['menunggu', 'ditindaklanjuti', 'selesai'] &&
+        data.counselorNote is string && data.counselorNote.size() <= 2000 &&
+        data.createdAt is timestamp &&
+        data.updatedAt is timestamp;
+    }
+
+    function isValidSiteSetting(data) {
+      return data.keys().hasAll(['id', 'heroHeadline', 'heroSubheadline', 'motivationQuote', 'motivationAuthor', 'featuredTip', 'updatedAt']) &&
+        data.keys().hasOnly(['id', 'heroHeadline', 'heroSubheadline', 'motivationQuote', 'motivationAuthor', 'featuredTip', 'updatedAt']) &&
+        isValidId(data.id) &&
+        data.heroHeadline is string && data.heroHeadline.size() >= 3 && data.heroHeadline.size() <= 200 &&
+        data.heroSubheadline is string && data.heroSubheadline.size() >= 3 && data.heroSubheadline.size() <= 500 &&
+        data.motivationQuote is string && data.motivationQuote.size() >= 3 && data.motivationQuote.size() <= 400 &&
+        data.motivationAuthor is string && data.motivationAuthor.size() >= 2 && data.motivationAuthor.size() <= 120 &&
+        data.featuredTip is string && data.featuredTip.size() >= 3 && data.featuredTip.size() <= 400 &&
+        data.updatedAt is timestamp;
+    }
+
+    // 1. Users Collection (PII protected: owner or Guru BK/Admin only)
+    match /users/{userId} {
+      allow get: if isValidId(userId) && (isOwner(userId) || isCounselorOrAdmin());
+      allow list: if isCounselorOrAdmin() && existing().uid is string;
+      allow create: if isVerified() && isValidId(userId) && isValidUserProfile(incoming()) && (
+        (isOwner(userId) && incoming().uid == request.auth.uid && incoming().role == 'siswa' && incoming().createdAt == request.time && incoming().updatedAt == request.time) ||
+        (isAdmin() && incoming().createdAt == request.time && incoming().updatedAt == request.time)
+      );
+      allow update: if isVerified() && isValidId(userId) && isValidUserProfile(incoming()) &&
+        incoming().uid == existing().uid &&
+        incoming().createdAt == existing().createdAt &&
+        incoming().updatedAt == request.time && (
+          (isAdmin() && incoming().diff(existing()).affectedKeys().hasOnly(['name', 'grade', 'school', 'role', 'photoUrl', 'guardianConsent', 'completedMaterialIds', 'updatedAt'])) ||
+          (isOwner(userId) && incoming().role == existing().role && incoming().diff(existing()).affectedKeys().hasOnly(['name', 'grade', 'school', 'photoUrl', 'guardianConsent', 'completedMaterialIds', 'updatedAt']))
+        );
+      allow delete: if isValidId(userId) && isAdmin();
+    }
+
+    // 2. Staff Roles Collection (Trusted RBAC)
+    match /staff_roles/{userId} {
+      allow get: if isValidId(userId) && (isOwner(userId) || isAdmin());
+      allow list: if isAdmin() && existing().uid is string;
+      allow create: if isValidId(userId) && isAdmin() && isValidStaffRole(incoming()) && incoming().createdAt == request.time;
+      allow update: if isValidId(userId) && isAdmin() && isValidStaffRole(incoming()) &&
+        incoming().uid == existing().uid &&
+        incoming().createdAt == existing().createdAt &&
+        incoming().diff(existing()).affectedKeys().hasOnly(['email', 'name', 'role']);
+      allow delete: if isValidId(userId) && isAdmin();
+    }
+
+    // 3. Material Categories
+    match /material_categories/{categoryId} {
+      allow get: if isValidId(categoryId) && (existing().grade in ['VII', 'VIII', 'IX']);
+      allow list: if existing().grade in ['VII', 'VIII', 'IX'];
+      allow create: if isValidId(categoryId) && isCounselorOrAdmin() && isValidMaterialCategory(incoming()) && incoming().updatedAt == request.time;
+      allow update: if isValidId(categoryId) && isCounselorOrAdmin() && isValidMaterialCategory(incoming()) &&
+        incoming().id == existing().id &&
+        incoming().updatedAt == request.time &&
+        incoming().diff(existing()).affectedKeys().hasOnly(['name', 'grade', 'description', 'order', 'updatedAt']);
+      allow delete: if isValidId(categoryId) && isCounselorOrAdmin();
+    }
+
+    // 4. Career Materials
+    match /materials/{materialId} {
+      allow get: if isValidId(materialId) && (existing().published == true || isCounselorOrAdmin());
+      allow list: if existing().published == true || isCounselorOrAdmin();
+      allow create: if isValidId(materialId) && isCounselorOrAdmin() && isValidCareerMaterial(incoming()) && incoming().authorId == request.auth.uid && incoming().createdAt == request.time && incoming().updatedAt == request.time;
+      allow update: if isValidId(materialId) && isCounselorOrAdmin() && isValidCareerMaterial(incoming()) &&
+        incoming().id == existing().id &&
+        incoming().createdAt == existing().createdAt &&
+        incoming().updatedAt == request.time &&
+        incoming().diff(existing()).affectedKeys().hasOnly(['title', 'grade', 'categoryId', 'categoryName', 'learningObjective', 'imageUrl', 'explanation', 'dailyExamples', 'reflectionPrompt', 'published', 'updatedAt']);
+      allow delete: if isValidId(materialId) && isCounselorOrAdmin();
+    }
+
+    // 5. Material Quizzes
+    match /quizzes/{quizId} {
+      allow get: if isValidId(quizId) && (existing().published == true || isCounselorOrAdmin());
+      allow list: if existing().published == true || isCounselorOrAdmin();
+      allow create: if isValidId(quizId) && isCounselorOrAdmin() && isValidMaterialQuiz(incoming()) && incoming().updatedAt == request.time;
+      allow update: if isValidId(quizId) && isCounselorOrAdmin() && isValidMaterialQuiz(incoming()) &&
+        incoming().id == existing().id &&
+        incoming().updatedAt == request.time &&
+        incoming().diff(existing()).affectedKeys().hasOnly(['materialId', 'questions', 'published', 'updatedAt']);
+      allow delete: if isValidId(quizId) && isCounselorOrAdmin();
+    }
+
+    // 6. Quiz Results
+    match /quiz_results/{resultId} {
+      allow get: if isValidId(resultId) && isSignedIn() && (existing().userId == request.auth.uid || isCounselorOrAdmin());
+      allow list: if isSignedIn() && (existing().userId == request.auth.uid || isCounselorOrAdmin());
+      allow create: if isVerified() && isValidId(resultId) && isValidQuizResult(incoming()) &&
+        exists(/databases/$(database)/documents/materials/$(incoming().materialId)) &&
+        incoming().createdAt == request.time && incoming().updatedAt == request.time;
+      allow update: if isVerified() && isValidId(resultId) && isValidQuizResult(incoming()) &&
+        existing().userId == request.auth.uid &&
+        incoming().userId == existing().userId &&
+        incoming().materialId == existing().materialId &&
+        incoming().createdAt == existing().createdAt &&
+        incoming().updatedAt == request.time &&
+        incoming().diff(existing()).affectedKeys().hasOnly(['score', 'totalQuestions', 'reflectionNote', 'completed', 'updatedAt']);
+      allow delete: if isValidId(resultId) && isAdmin();
+    }
+
+    // 7. Career Explorations (RIASEC)
+    match /career_explorations/{explorationId} {
+      allow get: if isValidId(explorationId) && isSignedIn() && (existing().userId == request.auth.uid || isCounselorOrAdmin());
+      allow list: if isSignedIn() && (existing().userId == request.auth.uid || isCounselorOrAdmin());
+      allow create: if isVerified() && isValidId(explorationId) && isValidCareerExploration(incoming()) && incoming().createdAt == request.time;
+      allow update: if false;
+      allow delete: if isValidId(explorationId) && (isAdmin() || (isSignedIn() && existing().userId == request.auth.uid));
+    }
+
+    // 8. Articles (Info Terkini)
+    match /articles/{articleId} {
+      allow get: if isValidId(articleId) && (existing().published == true || isCounselorOrAdmin());
+      allow list: if existing().published == true || isCounselorOrAdmin();
+      allow create: if isValidId(articleId) && isCounselorOrAdmin() && isValidInfoArticle(incoming()) && incoming().authorId == request.auth.uid && incoming().createdAt == request.time && incoming().updatedAt == request.time;
+      allow update: if isValidId(articleId) && isCounselorOrAdmin() && isValidInfoArticle(incoming()) &&
+        incoming().id == existing().id &&
+        incoming().createdAt == existing().createdAt &&
+        incoming().updatedAt == request.time &&
+        incoming().diff(existing()).affectedKeys().hasOnly(['title', 'category', 'publishedDateLabel', 'updatedAtLabel', 'summary', 'content', 'sourceName', 'sourceUrl', 'imageUrl', 'published', 'updatedAt']);
+      allow delete: if isValidId(articleId) && isCounselorOrAdmin();
+    }
+
+    // 9. Announcements
+    match /announcements/{announcementId} {
+      allow get: if isValidId(announcementId) && (existing().active == true || isCounselorOrAdmin());
+      allow list: if existing().active == true || isCounselorOrAdmin();
+      allow create: if isValidId(announcementId) && isCounselorOrAdmin() && isValidAnnouncement(incoming()) && incoming().authorId == request.auth.uid && incoming().createdAt == request.time && incoming().updatedAt == request.time;
+      allow update: if isValidId(announcementId) && isCounselorOrAdmin() && isValidAnnouncement(incoming()) &&
+        incoming().id == existing().id &&
+        incoming().createdAt == existing().createdAt &&
+        incoming().updatedAt == request.time &&
+        incoming().diff(existing()).affectedKeys().hasOnly(['title', 'message', 'targetGrade', 'active', 'updatedAt']);
+      allow delete: if isValidId(announcementId) && isCounselorOrAdmin();
+    }
+
+    // 10. Private Chat Sessions (Strictly Private to Owner)
+    match /chat_sessions/{sessionId} {
+      allow get: if isValidId(sessionId) && isSignedIn() && existing().userId == request.auth.uid;
+      allow list: if isSignedIn() && existing().userId == request.auth.uid;
+      allow create: if isVerified() && isValidId(sessionId) && isValidChatSession(incoming()) && incoming().createdAt == request.time && incoming().updatedAt == request.time;
+      allow update: if isVerified() && isValidId(sessionId) && isValidChatSession(incoming()) &&
+        existing().userId == request.auth.uid &&
+        incoming().userId == existing().userId &&
+        incoming().createdAt == existing().createdAt &&
+        incoming().updatedAt == request.time &&
+        incoming().diff(existing()).affectedKeys().hasOnly(['title', 'topicCategory', 'messageCount', 'updatedAt']);
+      allow delete: if isValidId(sessionId) && isSignedIn() && existing().userId == request.auth.uid;
+    }
+
+    // 11. Private Chat Messages (Strictly Private to Owner)
+    match /chat_messages/{messageId} {
+      allow get: if isValidId(messageId) && isSignedIn() && existing().userId == request.auth.uid;
+      allow list: if isSignedIn() && existing().userId == request.auth.uid;
+      allow create: if isVerified() && isValidId(messageId) && isValidChatMessage(incoming()) &&
+        exists(/databases/$(database)/documents/chat_sessions/$(incoming().sessionId)) &&
+        get(/databases/$(database)/documents/chat_sessions/$(incoming().sessionId)).data.userId == request.auth.uid &&
+        incoming().createdAt == request.time;
+      allow update: if false;
+      allow delete: if isValidId(messageId) && isSignedIn() && existing().userId == request.auth.uid;
+    }
+
+    // 12. Aggregate Chatbot Usage Stats (No message text)
+    match /chatbot_usage_stats/{statId} {
+      allow get: if isValidId(statId) && isSignedIn() && (existing().userId == request.auth.uid || isCounselorOrAdmin());
+      allow list: if isSignedIn() && (existing().userId == request.auth.uid || isCounselorOrAdmin());
+      allow create: if isVerified() && isValidId(statId) && isValidChatbotUsageStat(incoming()) && incoming().createdAt == request.time;
+      allow update: if false;
+      allow delete: if isValidId(statId) && isAdmin();
+    }
+
+    // 13. Counseling Referrals (Explicit Consent Required)
+    match /counseling_referrals/{referralId} {
+      allow get: if isValidId(referralId) && isSignedIn() && (existing().userId == request.auth.uid || isCounselorOrAdmin());
+      allow list: if isSignedIn() && (existing().userId == request.auth.uid || isCounselorOrAdmin());
+      allow create: if isVerified() && isValidId(referralId) && isValidCounselingReferral(incoming()) &&
+        incoming().userId == request.auth.uid &&
+        incoming().consentGiven == true &&
+        incoming().status == 'menunggu' &&
+        incoming().counselorNote == '' &&
+        incoming().createdAt == request.time && incoming().updatedAt == request.time;
+      allow update: if isVerified() && isValidId(referralId) && isValidCounselingReferral(incoming()) &&
+        incoming().userId == existing().userId &&
+        incoming().createdAt == existing().createdAt &&
+        incoming().updatedAt == request.time &&
+        (existing().status != 'selesai' || isAdmin()) &&
+        isCounselorOrAdmin() &&
+        incoming().diff(existing()).affectedKeys().hasOnly(['status', 'counselorNote', 'updatedAt']);
+      allow delete: if isValidId(referralId) && isAdmin();
+    }
+
+    // 14. Site Settings (Home Content)
+    match /site_settings/{settingId} {
+      allow get: if isValidId(settingId) && (settingId == 'home' || isCounselorOrAdmin());
+      allow list: if existing().id == 'home' || isCounselorOrAdmin();
+      allow create: if isValidId(settingId) && isCounselorOrAdmin() && isValidSiteSetting(incoming()) && incoming().updatedAt == request.time;
+      allow update: if isValidId(settingId) && isCounselorOrAdmin() && isValidSiteSetting(incoming()) &&
+        incoming().id == existing().id &&
+        incoming().updatedAt == request.time &&
+        incoming().diff(existing()).affectedKeys().hasOnly(['heroHeadline', 'heroSubheadline', 'motivationQuote', 'motivationAuthor', 'featuredTip', 'updatedAt']);
+      allow delete: if isValidId(settingId) && isAdmin();
+    }
+  }
+}

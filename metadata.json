@@ -1,0 +1,8 @@
+{
+  "name": "BICARA BK — Bimbingan Karier dan Konseling Digital",
+  "description": "Platform layanan bimbingan karier dan konseling digital interaktif untuk siswa SMP kelas VII, VIII, dan IX dengan Sahabat BK AI, eksplorasi minat RIASEC, materi karier, dan dashboard Guru BK.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

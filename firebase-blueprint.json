@@ -1,0 +1,292 @@
+{
+  "entities": {
+    "UserProfile": {
+      "title": "UserProfile",
+      "description": "Profil pengguna siswa, guru BK, atau administrator sekolah pada BICARA BK.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "name": { "type": "string", "minLength": 1, "maxLength": 120 },
+        "email": { "type": "string", "format": "email", "maxLength": 160 },
+        "grade": { "type": "string", "enum": ["VII", "VIII", "IX", "Staff"] },
+        "school": { "type": "string", "minLength": 1, "maxLength": 160 },
+        "role": { "type": "string", "enum": ["siswa", "guru_bk", "admin"] },
+        "photoUrl": { "type": "string", "maxLength": 500 },
+        "guardianConsent": { "type": "boolean" },
+        "completedMaterialIds": { "type": "array" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "name", "email", "grade", "school", "role", "guardianConsent", "completedMaterialIds", "createdAt", "updatedAt"]
+    },
+    "StaffRole": {
+      "title": "StaffRole",
+      "description": "Dokumen peran tepercaya untuk Guru BK dan Administrator sekolah.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "email": { "type": "string", "format": "email", "maxLength": 160 },
+        "name": { "type": "string", "minLength": 1, "maxLength": 120 },
+        "role": { "type": "string", "enum": ["guru_bk", "admin"] },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "email", "name", "role", "createdAt"]
+    },
+    "MaterialCategory": {
+      "title": "MaterialCategory",
+      "description": "Kategori materi bimbingan karier per jenjang kelas SMP.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "name": { "type": "string", "minLength": 1, "maxLength": 100 },
+        "grade": { "type": "string", "enum": ["VII", "VIII", "IX"] },
+        "description": { "type": "string", "maxLength": 400 },
+        "order": { "type": "integer" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "name", "grade", "description", "order", "updatedAt"]
+    },
+    "CareerMaterial": {
+      "title": "CareerMaterial",
+      "description": "Materi bimbingan karier SMP dengan tujuan, penjelasan, contoh nyata, dan refleksi.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "title": { "type": "string", "minLength": 2, "maxLength": 160 },
+        "grade": { "type": "string", "enum": ["VII", "VIII", "IX"] },
+        "categoryId": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "categoryName": { "type": "string", "minLength": 1, "maxLength": 100 },
+        "learningObjective": { "type": "string", "minLength": 5, "maxLength": 500 },
+        "imageUrl": { "type": "string", "maxLength": 500 },
+        "explanation": { "type": "string", "minLength": 10, "maxLength": 8000 },
+        "dailyExamples": { "type": "array" },
+        "reflectionPrompt": { "type": "string", "minLength": 5, "maxLength": 600 },
+        "published": { "type": "boolean" },
+        "authorId": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "title", "grade", "categoryId", "categoryName", "learningObjective", "imageUrl", "explanation", "dailyExamples", "reflectionPrompt", "published", "authorId", "createdAt", "updatedAt"]
+    },
+    "MaterialQuiz": {
+      "title": "MaterialQuiz",
+      "description": "Kuis interaktif 5 soal beserta pembahasan untuk setiap materi karier.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "materialId": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "questions": { "type": "array" },
+        "published": { "type": "boolean" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "materialId", "questions", "published", "updatedAt"]
+    },
+    "QuizResult": {
+      "title": "QuizResult",
+      "description": "Hasil pengerjaan kuis dan refleksi siswa pada materi tertentu.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "userId": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "materialId": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "materialTitle": { "type": "string", "maxLength": 160 },
+        "grade": { "type": "string", "enum": ["VII", "VIII", "IX"] },
+        "score": { "type": "integer" },
+        "totalQuestions": { "type": "integer" },
+        "reflectionNote": { "type": "string", "maxLength": 2000 },
+        "completed": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "userId", "materialId", "materialTitle", "grade", "score", "totalQuestions", "reflectionNote", "completed", "createdAt", "updatedAt"]
+    },
+    "CareerExploration": {
+      "title": "CareerExploration",
+      "description": "Hasil kuis eksplorasi minat karier berbasis RIASEC milik siswa.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "userId": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "userName": { "type": "string", "maxLength": 120 },
+        "grade": { "type": "string", "enum": ["VII", "VIII", "IX", "Staff"] },
+        "scores": { "type": "object" },
+        "topThree": { "type": "array" },
+        "answersCount": { "type": "integer" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "userId", "userName", "grade", "scores", "topThree", "answersCount", "createdAt"]
+    },
+    "InfoArticle": {
+      "title": "InfoArticle",
+      "description": "Artikel informasi pendidikan terverifikasi yang dikelola guru BK/admin.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "title": { "type": "string", "minLength": 3, "maxLength": 200 },
+        "category": { "type": "string", "maxLength": 80 },
+        "publishedDateLabel": { "type": "string", "maxLength": 60 },
+        "updatedAtLabel": { "type": "string", "maxLength": 60 },
+        "summary": { "type": "string", "maxLength": 600 },
+        "content": { "type": "string", "maxLength": 8000 },
+        "sourceName": { "type": "string", "maxLength": 160 },
+        "sourceUrl": { "type": "string", "maxLength": 500 },
+        "imageUrl": { "type": "string", "maxLength": 500 },
+        "published": { "type": "boolean" },
+        "authorId": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "title", "category", "publishedDateLabel", "updatedAtLabel", "summary", "content", "sourceName", "sourceUrl", "imageUrl", "published", "authorId", "createdAt", "updatedAt"]
+    },
+    "Announcement": {
+      "title": "Announcement",
+      "description": "Pengumuman resmi sekolah atau layanan BK untuk siswa.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "title": { "type": "string", "minLength": 2, "maxLength": 160 },
+        "message": { "type": "string", "minLength": 2, "maxLength": 1000 },
+        "targetGrade": { "type": "string", "enum": ["Semua", "VII", "VIII", "IX"] },
+        "active": { "type": "boolean" },
+        "authorId": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "title", "message", "targetGrade", "active", "authorId", "createdAt", "updatedAt"]
+    },
+    "ChatSession": {
+      "title": "ChatSession",
+      "description": "Sesi percakapan privat siswa dengan Sahabat BK AI.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "userId": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "title": { "type": "string", "minLength": 1, "maxLength": 140 },
+        "topicCategory": { "type": "string", "maxLength": 60 },
+        "messageCount": { "type": "integer" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "userId", "title", "topicCategory", "messageCount", "createdAt", "updatedAt"]
+    },
+    "ChatMessage": {
+      "title": "ChatMessage",
+      "description": "Pesan individual dalam sesi percakapan privat Sahabat BK AI.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "sessionId": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "userId": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "role": { "type": "string", "enum": ["user", "model"] },
+        "content": { "type": "string", "minLength": 1, "maxLength": 10000 },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "sessionId", "userId", "role", "content", "createdAt"]
+    },
+    "ChatbotUsageStat": {
+      "title": "ChatbotUsageStat",
+      "description": "Statistik agregat penggunaan chatbot tanpa isi percakapan pribadi.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "userId": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "grade": { "type": "string", "enum": ["VII", "VIII", "IX", "Staff"] },
+        "topicCategory": { "type": "string", "maxLength": 60 },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "userId", "grade", "topicCategory", "createdAt"]
+    },
+    "CounselingReferral": {
+      "title": "CounselingReferral",
+      "description": "Permintaan tindak lanjut konseling ke Guru BK dengan persetujuan eksplisit siswa.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "userId": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "userName": { "type": "string", "maxLength": 120 },
+        "grade": { "type": "string", "enum": ["VII", "VIII", "IX", "Staff"] },
+        "topic": { "type": "string", "maxLength": 120 },
+        "studentSummary": { "type": "string", "maxLength": 2000 },
+        "consentGiven": { "type": "boolean" },
+        "status": { "type": "string", "enum": ["menunggu", "ditindaklanjuti", "selesai"] },
+        "counselorNote": { "type": "string", "maxLength": 2000 },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "userId", "userName", "grade", "topic", "studentSummary", "consentGiven", "status", "counselorNote", "createdAt", "updatedAt"]
+    },
+    "SiteSetting": {
+      "title": "SiteSetting",
+      "description": "Pengaturan konten halaman beranda yang dikelola oleh admin/guru BK.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "minLength": 1, "maxLength": 64, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "heroHeadline": { "type": "string", "maxLength": 200 },
+        "heroSubheadline": { "type": "string", "maxLength": 500 },
+        "motivationQuote": { "type": "string", "maxLength": 400 },
+        "motivationAuthor": { "type": "string", "maxLength": 120 },
+        "featuredTip": { "type": "string", "maxLength": 400 },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "heroHeadline", "heroSubheadline", "motivationQuote", "motivationAuthor", "featuredTip", "updatedAt"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": { "$ref": "#/entities/UserProfile" },
+      "description": "Profil pengguna siswa dan staf."
+    },
+    "/staff_roles/{userId}": {
+      "schema": { "$ref": "#/entities/StaffRole" },
+      "description": "Daftar peran resmi guru BK dan admin."
+    },
+    "/material_categories/{categoryId}": {
+      "schema": { "$ref": "#/entities/MaterialCategory" },
+      "description": "Kategori materi bimbingan karier."
+    },
+    "/materials/{materialId}": {
+      "schema": { "$ref": "#/entities/CareerMaterial" },
+      "description": "Materi bimbingan karier kelas VII, VIII, dan IX."
+    },
+    "/quizzes/{quizId}": {
+      "schema": { "$ref": "#/entities/MaterialQuiz" },
+      "description": "Kuis interaktif 5 soal untuk setiap materi."
+    },
+    "/quiz_results/{resultId}": {
+      "schema": { "$ref": "#/entities/QuizResult" },
+      "description": "Hasil kuis dan refleksi pribadi siswa."
+    },
+    "/career_explorations/{explorationId}": {
+      "schema": { "$ref": "#/entities/CareerExploration" },
+      "description": "Hasil tes minat dan bakat RIASEC."
+    },
+    "/articles/{articleId}": {
+      "schema": { "$ref": "#/entities/InfoArticle" },
+      "description": "Artikel Info Terkini terverifikasi."
+    },
+    "/announcements/{announcementId}": {
+      "schema": { "$ref": "#/entities/Announcement" },
+      "description": "Pengumuman layanan BK dan sekolah."
+    },
+    "/chat_sessions/{sessionId}": {
+      "schema": { "$ref": "#/entities/ChatSession" },
+      "description": "Sesi percakapan privat Sahabat BK AI."
+    },
+    "/chat_messages/{messageId}": {
+      "schema": { "$ref": "#/entities/ChatMessage" },
+      "description": "Pesan dalam sesi percakapan privat Sahabat BK AI."
+    },
+    "/chatbot_usage_stats/{statId}": {
+      "schema": { "$ref": "#/entities/ChatbotUsageStat" },
+      "description": "Log agregat topik chatbot tanpa isi percakapan."
+    },
+    "/counseling_referrals/{referralId}": {
+      "schema": { "$ref": "#/entities/CounselingReferral" },
+      "description": "Permintaan tindak lanjut konseling dengan persetujuan eksplisit siswa."
+    },
+    "/site_settings/{settingId}": {
+      "schema": { "$ref": "#/entities/SiteSetting" },
+      "description": "Konten dinamis halaman beranda."
+    }
+  }
+}
